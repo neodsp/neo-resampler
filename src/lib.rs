@@ -182,7 +182,7 @@ impl NeoResampler {
         channel_idx: usize,
         num_channels: usize,
     ) -> f32 {
-        let num_input_frames: usize = input_audio.len() / num_channels as usize;
+        let num_input_frames: usize = input_audio.len() / num_channels;
         let a: f32 = Self::KERNEL_A as f32;
         let x_floor = frame_idx as i64;
         let i_start = x_floor - a as i64 + 1;
@@ -221,10 +221,7 @@ mod tests {
             .resample_by_mode(output_sr, RESAMPLE_MODE_BABYCAT_LANCZOS)
             .unwrap();
 
-        let mut resampler = NeoResampler::default();
-        resampler
-            .prepare(input_sr, output_sr, num_frames, 1)
-            .unwrap();
+        let resampler = NeoResampler::new(input_sr, output_sr, num_frames, 1).unwrap();
 
         let mut generated_output = vec![0.0; resampler.num_output_frames_max()];
         let frames_written = resampler
@@ -258,19 +255,17 @@ mod tests {
 
         let num_frames = 512;
 
-        let mut resampler = NeoResampler::default();
-
         let input_frame_rate_hz = waveform.frame_rate_hz();
         let output_frame_rate_hz = 16000;
         let num_channels = waveform.num_channels();
-        resampler
-            .prepare(
-                input_frame_rate_hz,
-                output_frame_rate_hz,
-                num_frames,
-                num_channels,
-            )
-            .unwrap();
+
+        let resampler = NeoResampler::new(
+            input_frame_rate_hz,
+            output_frame_rate_hz,
+            num_frames,
+            num_channels,
+        )
+        .unwrap();
 
         for input_audio in samples.chunks_exact(num_frames) {
             let mut generated_output = vec![0.0; resampler.num_output_frames_max()];
