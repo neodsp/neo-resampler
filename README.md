@@ -35,3 +35,13 @@ resampler_output.resize(resampler.num_output_frames_max(), 0.0);
 // you can ignore the returned num_samples_written.
 let num_samples_written = resampler.process(&input_audio, num_frames, &mut resampler_output).unwrap();
 ```
+
+- With the `new` function, you can add the audio settings immediately
+```rust
+let resampler = NeoResampler::new(
+    input_frame_rate_hz,
+    output_frame_rate_hz,
+    num_frames,
+    num_channels,
+).unwrap();
+```
