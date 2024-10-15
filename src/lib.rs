@@ -1,5 +1,6 @@
-use std::f32::consts::PI;
+use std::f64::consts::PI;
 
+use num::Float;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -63,11 +64,11 @@ impl NeoResampler {
 
     /// return frames actually written
     /// is only less if input_audio contains less samples then registered at prepare callback
-    pub fn process(
+    pub fn process<F: Float>(
         &self,
-        input_audio: &[f32],
+        input_audio: &[F],
         num_frames: usize,
-        output_audio: &mut [f32],
+        output_audio: &mut [F],
     ) -> Result<usize, NeoResamplerError> {
         if num_frames > self.num_input_frames_max {
             return Err(NeoResamplerError::WrongNumFrames(num_frames));
@@ -87,8 +88,9 @@ impl NeoResampler {
 
         for input_frame_idx in 0..num_output_frames {
             for channel_idx in 0..self.num_channels {
-                let output_frame_idx = (input_frame_idx as f32 * self.input_frame_rate_hz as f32)
-                    / self.output_frame_rate_hz as f32;
+                let output_frame_idx = (F::from(input_frame_idx).unwrap()
+                    * F::from(self.input_frame_rate_hz).unwrap())
+                    / F::from(self.output_frame_rate_hz).unwrap();
                 *Self::get_mut(
                     output_audio,
                     input_frame_idx,
@@ -155,14 +157,15 @@ impl NeoResampler {
         Ok(())
     }
 
-    fn lanczos_kernel(x: f32, a: f32) -> f32 {
-        if float_cmp::approx_eq!(f32, x, 0.0_f32) {
-            return 1.0;
+    fn lanczos_kernel<F: Float>(x: F, a: F) -> F {
+        if x.abs() < F::from(1e-6).unwrap() {
+            return F::one();
         }
+        let pi = F::from(PI).unwrap();
         if -a <= x && x < a {
-            return (a * (PI * x).sin() * (PI * x / a).sin()) / (PI * PI * x * x);
+            return (a * (pi * x).sin() * (pi * x / a).sin()) / (pi * pi * x * x);
         }
-        0.0
+        F::zero()
     }
 
     fn get<T: Copy>(v: &[T], frame: usize, channel_idx: usize, num_channels: usize) -> T {
@@ -176,22 +179,23 @@ impl NeoResampler {
     #[allow(clippy::cast_precision_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
-    fn compute_sample(
-        input_audio: &[f32],
-        frame_idx: f32,
+    fn compute_sample<F: Float>(
+        input_audio: &[F],
+        frame_idx: F,
         channel_idx: usize,
         num_channels: usize,
-    ) -> f32 {
+    ) -> F {
         let num_input_frames: usize = input_audio.len() / num_channels;
-        let a: f32 = Self::KERNEL_A as f32;
-        let x_floor = frame_idx as i64;
-        let i_start = x_floor - a as i64 + 1;
-        let i_end = x_floor + a as i64 + 1;
-        let mut the_sample: f32 = 0.0_f32;
+        let a = F::from(Self::KERNEL_A).unwrap();
+        let x_floor = frame_idx.to_i64().unwrap();
+        let i_start = x_floor - a.to_i64().unwrap() + 1;
+        let i_end = x_floor + a.to_i64().unwrap() + 1;
+        let mut the_sample = F::zero();
         for i in i_start..i_end {
             if (i as usize) < num_input_frames {
-                the_sample += Self::get(input_audio, i as usize, channel_idx, num_channels)
-                    * Self::lanczos_kernel(frame_idx - i as f32, a);
+                the_sample = the_sample
+                    + Self::get(input_audio, i as usize, channel_idx, num_channels)
+                        * Self::lanczos_kernel(frame_idx - F::from(i).unwrap(), a);
             }
         }
         the_sample
