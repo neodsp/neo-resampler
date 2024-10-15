@@ -1,0 +1,12 @@
+[package]
+name = "neo-resampler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+babycat = { version = "0.0.15", features = ["frontend-binary"] }
+float-cmp = "0.10.0"
+thiserror = "1.0.64"
+
+[dev-dependencies]
+rand = "0.8.5"
